@@ -14,7 +14,7 @@ import java.util.*;
  */
 public class UDPServer extends Host {
   private int port;
-  private int bufSize = 5; //128 bytes
+  private int bufSize = 128; //128 bytes
   private DatagramSocket receivingSocket = null;
   LinkedList<String> linkedlist = new LinkedList<String>();
   
