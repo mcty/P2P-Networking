@@ -15,35 +15,48 @@ import java.util.Arrays;
  * 
  * @author Austin
  */
-public class UDPSender {
-  private int receiverPort = 0;
-  private int bufSize = 5;
+public class UDPSender extends Host{
+  private boolean DEBUG = true;
+  
+  //Target machine info
+  private int targetPort = 0;
+  private InetAddress targetIPAddr = null;
+  
+  //Host machine info
   private int hostport = 25565;
-  private DatagramSocket socket = null;
-  private InetAddress IPAddress = null;
+  
+  //Data sending info
+  private int bufSize = 5;  //MTU - Maximum Tranmission Unit - Number of bytes that can be sent at once
+  private DatagramSocket socket = null; //The socket through which data is being sent to receiver
   
   public UDPSender(){
-    
+    super();
   }
   
+  //Sets MTU of sender
   public void setBufferSize(int size){
     if(size > 0) bufSize = size;
   }
   
-  public void startSender(byte[] targetAddress, int receiverPort) throws SocketException, UnknownHostException{
-    socket = new DatagramSocket(hostport);
-    IPAddress = InetAddress.getByAddress(targetAddress);
-    this.receiverPort = receiverPort;
+  //Prepares the sender to start sending
+  public void startSender(byte[] targetAddress, int targetPort) throws SocketException, UnknownHostException{
+    socket = new DatagramSocket(hostport);  //Create socket to send out of
+    targetIPAddr = InetAddress.getByAddress(targetAddress); //Get IP of target
+    this.targetPort = targetPort; 
   }
   
+  //Closes the socket, stops the transmission of data
   public void stopSender(){
     if(socket!=null) socket.close();
   }
   
+  //Send an amount of data to the target machine
   public void sendData(byte[] data) throws SocketException, IOException, InterruptedException{
     
+    String method = "inform";
     ByteArrayInputStream byteStream = new ByteArrayInputStream(data);
     int packetNum = 0;
+    
     
     while(byteStream.available()>0){
       byte[] packetData = new byte[bufSize];
@@ -53,7 +66,7 @@ public class UDPSender {
       }
         System.out.println("Sending packet (" + packetNum++ + "): '"
                 + new String(packetData));
-        DatagramPacket packet = new DatagramPacket(packetData, packetData.length, IPAddress, receiverPort);
+        DatagramPacket packet = new DatagramPacket(packetData, packetData.length, targetIPAddr, targetPort);
         socket.send(packet);
         Thread.sleep(1200);
     }
