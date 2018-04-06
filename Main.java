@@ -29,27 +29,23 @@ public class Main {
   }
   
   private static void senderRoutine(Scanner scan){
-    int port;
-    String hostname;
-    byte[] localIPAddress;
+    int targetPort;
+    String data;
     
     try{
-        //Get hostname (and IP)
-        hostname = getHostName();
-        System.out.println("Hello host " + hostname);
-      
-        //Get port
-        System.out.println("What is the target's port?");
-        port = scan.nextInt();
+        UDPSender sender = new UDPSender(); //Create inital sender
+        System.out.println("Hello host " + sender.getHostName());
         
-        //Create sender
-		byte[] targetAddress = {127,0,0,1};
+        System.out.println("What is the target's port?"); //Get target port
+        targetPort = scan.nextInt();
+        
+        System.out.println("What is the target's IP address?"); //Get target IP
+        byte[] targetAddress = new byte[4];
+        for(int i = 0; i < 4; i++) targetAddress[i] = (byte)(scan.nextInt());
         //byte[] targetAddress = {10,8,101,(byte)172};
-        UDPSender sender = new UDPSender();
-        sender.startSender(targetAddress, port);
         
         //Send data until 'stop'
-        String data;
+        sender.startSender(targetAddress, targetPort);
         while( !(data = scan.nextLine()).equals("stop")){
           sender.sendData(data.getBytes());
         }
@@ -59,29 +55,6 @@ public class Main {
       }
   }
   
-  private static String getHostName(){
-    String hostname = "";
-    String temp = null;
-    ProcessBuilder pb;
-    Process pr;
-    
-    try{
-      //Create process to run 'hostname' locally
-      pb = new ProcessBuilder("hostname");
-      pb.redirectErrorStream(true); //Send standard output and error output to same stream
-      pr = pb.start(); //Run process
-
-      //Get input
-      BufferedReader result = new BufferedReader(new InputStreamReader(pr.getInputStream()));
-      while((temp = result.readLine())!=null){ hostname += temp;}
-      pr.waitFor(); //Wait until process is complete (should be quick)
-      result.close(); //Close reader
-      }
-    catch(Exception e){
-      e.printStackTrace();
-    }
-    return hostname;
-  }
   private static void serverRoutine(Scanner scan){
       String serverName;
       int port;

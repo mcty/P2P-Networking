@@ -12,9 +12,9 @@ import java.util.*;
  * 
  * @author Austin
  */
-public class UDPServer extends Thread {
+public class UDPServer extends Host {
   private int port;
-  private int bufSize = 5; //128 bytes
+  private int bufSize = 128; //128 bytes
   private DatagramSocket receivingSocket = null;
   LinkedList<String> linkedlist = new LinkedList<String>();
   
@@ -45,7 +45,7 @@ public class UDPServer extends Thread {
 	try{
       receivingSocket = new DatagramSocket(port);
       System.out.println("Host is listening for UDP data on port " + port
-              + " with IP address " + 0000);
+              + " with IP address " + getIPAddress());
       while(true){
         //Wait for request
         System.out.println("Waiting for data...");
