@@ -23,9 +23,9 @@ public class UDPSender extends Host{
   private InetAddress targetIPAddr = null;
   
   //Host machine info
-  private int hostport = 25565;
+  private int hostPort = 25565;
   
-  //Data sending info
+  //Data sending and receiving
   private int bufSize = 128;  //MTU - Maximum Tranmission Unit - Number of bytes that can be sent at once
   private DatagramSocket socket = null; //The socket through which data is being sent to receiver
   
@@ -40,7 +40,7 @@ public class UDPSender extends Host{
   
   //Prepares the sender to start sending
   public void startSender(byte[] targetAddress, int targetPort) throws SocketException, UnknownHostException{
-    socket = new DatagramSocket(hostport);  //Create socket to send out of
+    socket = new DatagramSocket(hostPort);  //Create socket to send out of
     targetIPAddr = InetAddress.getByAddress(targetAddress); //Get IP of target
     this.targetPort = targetPort; 
   }
@@ -50,9 +50,12 @@ public class UDPSender extends Host{
     if(socket!=null) socket.close();
   }
   
+  
   //Send an amount of data to the target machine
   public void sendData(byte[] data) throws SocketException, IOException, InterruptedException{
-   
+    //Managing RDT
+    ACKTimer timer;
+    
     //Data to put in Application-Header
     String method = "inform"; //TODO: need to allow client program to specify method
     String hostName = getHostName();
@@ -103,9 +106,29 @@ public class UDPSender extends Host{
       socket.send(packet);
       SEQ = !SEQ;
       
+      //Wait for correct ACK
+      timer = new ACKTimer(socket, packet, 1000); //Timer that will resend packet
+      byte[] ACKdata = { (byte)(SEQ?0:1) }; //Where ACK data will be placed, intialize to incorrect ACK value (which would be the value not equal to SEQ since we need ACK corresponding to sent packet)
+      DatagramPacket ack = new DatagramPacket(ACKdata, 1); //ACK packet
+      timer.start(); //Start timer
+      while(ACKdata[0] != (SEQ?1:0)){
+        socket.receive(ack); //Constantly receive acks until we get the correct one
+        System.out.println("Data : " + ACKdata[0]);
+      }
+      timer.stop();
+      
       Thread.sleep(1200);
     }
     
     System.out.println("Full message sent!");
+  }
+  
+  /* GETTERS/SETTERS */
+  public void setTargetPort(int targetPort) {
+    this.targetPort = targetPort;
+  }
+
+  public void setHostPort(int hostPort) {
+    this.hostPort = hostPort;
   }
 }
