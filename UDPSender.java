@@ -104,7 +104,6 @@ public class UDPSender extends Host{
               + "|- - - - END PACKET (total length: " + packetSize + ") - - - - -| \n");
       DatagramPacket packet = new DatagramPacket(packetData, packetData.length, targetIPAddr, targetPort);
       socket.send(packet);
-      SEQ = !SEQ;
       
       //Wait for correct ACK
       timer = new ACKTimer(socket, packet, 1000); //Timer that will resend packet
@@ -114,9 +113,12 @@ public class UDPSender extends Host{
       while(ACKdata[0] != (SEQ?1:0)){
         socket.receive(ack); //Constantly receive acks until we get the correct one
         System.out.println("Data : " + ACKdata[0]);
+        System.out.println("Expected:" + (SEQ?1:0) + " Got " + ACKdata[0]);
       }
       timer.stop();
       
+      //Update SEQ for new packet
+      SEQ = !SEQ;
       Thread.sleep(1200);
     }
     
