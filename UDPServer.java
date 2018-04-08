@@ -95,6 +95,9 @@ public class UDPServer extends Host {
 			}
 			sendACK(receivingSocket,SEQ,packet.getAddress(), packet.getPort());
 		}
+		else{
+			sendACK(receivingSocket,SEQ_previous,packet.getAddress(), packet.getPort());
+		}
       }
     }
     catch(Exception e){
