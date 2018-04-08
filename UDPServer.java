@@ -48,6 +48,7 @@ public class UDPServer extends Host {
   public void run(){
     String messageT = "";
 	int SEQ_previous = 1;
+	int PacketNum = 0;
 	try{
       receivingSocket = new DatagramSocket(port);
       System.out.println("Host is listening for UDP data on port " + port
@@ -80,9 +81,12 @@ public class UDPServer extends Host {
 		userData = userData.substring(0, userData.length() - 2);
 		
 		if(SEQ != SEQ_previous){
+			PacketNum = PacketNum + 1;
 			messageT = messageT + userData;
+			printPacketReceived(PacketNum, SEQ, EOM, SenderIP, packet.getLength());
 			if(EOM == 1){
 				printDataReceived(SEQ,EOM,SenderIP,messageT);
+				PacketNum = 0;
 			}
 			sendACK(receivingSocket,SEQ,packet.getAddress(), packet.getPort());
 			SEQ_previous = SEQ;
@@ -95,10 +99,18 @@ public class UDPServer extends Host {
     }
   }
   
+  //Packet Recieved Print Statement
+  public void printPacketReceived(int pnum, int SEQ, int EOM, String SenderIP, int length){
+	  System.out.println("|----Packet " + pnum + " recieved----|\n");
+	  System.out.println("Recieved: " + SenderIP + "SEQ: " + SEQ + "EOM: " + EOM + "\n");
+	  System.out.println("|----Packet Length: " + length + " ----|");
+  }
+  
   //Send ACK
   public void sendACK(DatagramSocket socket, int SEQ, InetAddress SenderIP, int SenderPort)throws SocketException, IOException, InterruptedException{
 	  byte[] packetData = {(byte)SEQ};
 	  DatagramPacket packet = new DatagramPacket(packetData, packetData.length, SenderIP, SenderPort);
       socket.send(packet);
+	  System.out.println("ACK Sent: " + SEQ);
   }
 }
