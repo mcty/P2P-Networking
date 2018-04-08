@@ -55,9 +55,11 @@ public class Main {
         //byte[] targetAddress = {10,8,101,(byte)172};
         
         //Send data until 'stop'
+        System.out.println("Okay, starting sending messages. Type 'stop' to end communication.\n");
         sender.startSender(targetAddress, targetPort); //Start sender
         while( !(data = scan.nextLine()).equals("stop")){
-          sender.sendData(data.getBytes()); //Send data
+          if(data.equals("")) continue;   //Ignore empty messages
+          else sender.sendData(data.getBytes()); //Send data
         }
       }
       catch(Exception e){
