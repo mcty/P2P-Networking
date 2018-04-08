@@ -45,7 +45,7 @@ public class Main {
         System.out.println("What is the target's port (port data is read from on server side)?"); //Get target port
         targetPort = scan.nextInt();
         
-        System.out.println("What is the host's port (port data is sent from and data received by client)?");
+        System.out.println("What is the host's port (port data is sent from and data received by client)?"); //Get host port
         senderPort = scan.nextInt();
         sender.setHostPort(senderPort);
         
@@ -55,9 +55,9 @@ public class Main {
         //byte[] targetAddress = {10,8,101,(byte)172};
         
         //Send data until 'stop'
-        sender.startSender(targetAddress, targetPort);
+        sender.startSender(targetAddress, targetPort); //Start sender
         while( !(data = scan.nextLine()).equals("stop")){
-          sender.sendData(data.getBytes());
+          sender.sendData(data.getBytes()); //Send data
         }
       }
       catch(Exception e){
@@ -69,19 +69,21 @@ public class Main {
       String serverName;
       int port;
       
-      System.out.println("What is the server's name?");
+      System.out.println("What is the server's name?"); //Server's name
       serverName = scan.next();
-      System.out.println("What is the server's port (the port being listened to)?");
+      System.out.println("What is the server's port (the port being listened to)?"); //The port the server is listening to
       port = scan.nextInt();
       
-      UDPServer server = new UDPServer(serverName, port);
+      UDPServer server = new UDPServer(serverName, port); //Create and start the server itself
       server.start();
       
       System.out.println("Okay, server has been set up!");
       while(!scan.next().equals("stop")); //Just wait until told to stop
-      server.stopListening();
+      server.stopListening(); //Terminate server
   }
   
+  //Method exclusively for testing
+  //Specifically for sending data to hosts without packet headers
   private static void simpleSenderRoutine(Scanner scan){
     int sourcePort, targetPort;
     

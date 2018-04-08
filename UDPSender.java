@@ -89,7 +89,7 @@ public class UDPSender extends Host{
         appDataBuffer = Arrays.copyOf(appDataBuffer, bytesRead);
       }
       
-      //If there are no more bytes, set EOM flag
+      //If there are no more bytes, set EOM flag (end of message flag)
       if(byteStream.available()==0) EOM = true;
       
       //Create packet's exact data
@@ -110,12 +110,13 @@ public class UDPSender extends Host{
       byte[] ACKdata = { (byte)(SEQ?0:1) }; //Where ACK data will be placed, intialize to incorrect ACK value (which would be the value not equal to SEQ since we need ACK corresponding to sent packet)
       DatagramPacket ack = new DatagramPacket(ACKdata, 1); //ACK packet
       timer.start(); //Start timer
-      while(ACKdata[0] != (SEQ?1:0)){
+      while(ACKdata[0] != (SEQ?1:0)){ //While incorrect ACK data, wait for correct ACK (this prevents delayed ACKS from affecting system)
         socket.receive(ack); //Constantly receive acks until we get the correct one
-        System.out.println("Data : " + ACKdata[0]);
-        System.out.println("Expected:" + (SEQ?1:0) + " Got " + ACKdata[0]);
+        System.out.println("Got ACK:");
+        System.out.println("ACK Data Expected:" + (SEQ?1:0) + "Ack Data Got " + ACKdata[0]);
       }
-      timer.stop();
+      timer.stop(); //End timer after correct ACK
+      System.out.println("Correct ACK received, continue sending data.");
       
       //Update SEQ for new packet
       SEQ = !SEQ;

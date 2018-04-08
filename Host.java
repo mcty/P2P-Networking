@@ -2,6 +2,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.InetAddress;
 
+//Contains functionality shared between servers and senders
 public class Host extends Thread{
   public static boolean DEBUG = true;
   protected String IPAddress = null;
