@@ -31,11 +31,11 @@ public class UDPServer extends Host {
   }
   
   public void printDataReceived(int SEQ, int EOM, String SenderIP, String message){
-	System.out.println("**Received data packet info**");
+	System.out.println("|---*Received data packet info*---|");
 	System.out.println("SEQ:" +SEQ);
 	System.out.println("EOM:" + EOM);
 	System.out.println("SenderIP:" + SenderIP);
-	System.out.println("message:" + message);
+	System.out.println("message:" + message + "\n");
   }
   
   //To give a specific buffer size
@@ -102,9 +102,9 @@ public class UDPServer extends Host {
   
   //Packet Recieved Print Statement
   public void printPacketReceived(int pnum, int SEQ, int EOM, String SenderIP, int length){
-	  System.out.println("|----Packet " + pnum + " recieved----|\n");
-	  System.out.println("Recieved: " + SenderIP + "SEQ: " + SEQ + "EOM: " + EOM + "\n");
-	  System.out.println("|----Packet Length: " + length + " ----|");
+	  System.out.println("|----Packet " + pnum + " recieved----|");
+	  System.out.println("Recieved: " + SenderIP + "\nSEQ: " + SEQ + "\tEOM: " + EOM);
+	  System.out.println("|----Packet Length: " + length + " ----|\n");
   }
   
   //Send ACK
