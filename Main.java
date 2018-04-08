@@ -59,7 +59,11 @@ public class Main {
         sender.startSender(targetAddress, targetPort); //Start sender
         while( !(data = scan.nextLine()).equals("stop")){
           if(data.equals("")) continue;   //Ignore empty messages
-          else sender.sendData(data.getBytes()); //Send data
+          else { //Send data
+            System.out.println(""); //New line
+            sender.sendData(data.getBytes()); //Send data
+            System.out.println("\nInput next message"); 
+          } 
         }
       }
       catch(Exception e){

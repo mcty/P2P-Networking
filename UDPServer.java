@@ -88,6 +88,7 @@ public class UDPServer extends Host {
 				printDataReceived(SEQ,EOM,SenderIP,messageT);
 				PacketNum = 0;
 				SEQ_previous = 1;
+                                messageT = "";
 			}
 			else{
 				SEQ_previous = SEQ;
