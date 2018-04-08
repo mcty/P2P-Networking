@@ -113,10 +113,10 @@ public class UDPSender extends Host{
       while(ACKdata[0] != (SEQ?1:0)){ //While incorrect ACK data, wait for correct ACK (this prevents delayed ACKS from affecting system)
         socket.receive(ack); //Constantly receive acks until we get the correct one
         System.out.println("Got ACK:");
-        System.out.println("ACK Data Expected:" + (SEQ?1:0) + "Ack Data Got " + ACKdata[0]);
+        System.out.println("/tACK Data Expected:" + (SEQ?1:0) + "Ack Data Got " + ACKdata[0]);
       }
       timer.stop(); //End timer after correct ACK
-      System.out.println("Correct ACK received, continue sending data.");
+      System.out.println("Correct ACK received, continue sending data.\n");
       
       //Update SEQ for new packet
       SEQ = !SEQ;
