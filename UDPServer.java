@@ -87,6 +87,7 @@ public class UDPServer extends Host {
 			if(EOM == 1){
 				printDataReceived(SEQ,EOM,SenderIP,messageT);
 				PacketNum = 0;
+				SEQ_previous = 1;
 			}
 			sendACK(receivingSocket,SEQ,packet.getAddress(), packet.getPort());
 			SEQ_previous = SEQ;
