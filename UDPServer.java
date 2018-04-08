@@ -89,8 +89,10 @@ public class UDPServer extends Host {
 				PacketNum = 0;
 				SEQ_previous = 1;
 			}
+			else{
+				SEQ_previous = SEQ;
+			}
 			sendACK(receivingSocket,SEQ,packet.getAddress(), packet.getPort());
-			SEQ_previous = SEQ;
 		}
       }
     }
