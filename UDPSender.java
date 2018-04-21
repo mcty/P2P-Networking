@@ -26,7 +26,7 @@ public class UDPSender extends Host{
   private int hostPort = 25565;
   
   //Data sending and receiving
-  private int bufSize = 128;  //MTU - Maximum Tranmission Unit - Number of bytes that can be sent at once
+  private int bufSize = Host.MSS;  //Set to comply with Maximum Segment Size specified in requirements
   private DatagramSocket socket = null; //The socket through which data is being sent to receiver
   
   public UDPSender(){

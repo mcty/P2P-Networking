@@ -17,7 +17,7 @@ import java.lang.*;
  */
 public class UDPServer extends Host {
   private int port;
-  private int bufSize = 128; //128 bytes
+  private int bufSize = Host.MSS; //Set to comply with Maximum Segment Size specified in requirements
   private DatagramSocket receivingSocket = null;
   
   public UDPServer(String name, int port){
