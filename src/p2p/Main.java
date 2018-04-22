@@ -1,8 +1,8 @@
 package p2p;
 
 
-import UDPSender;
-import UDPServer;
+import p2p.UDPSender;
+import p2p.UDPServer;
 import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -21,6 +21,7 @@ public class Main {
   public static final boolean DEBUG = true;
 
   public static void main(String[] args) {
+    //Class.forName("");
     Scanner scan = new Scanner(System.in);
     boolean isServer = false;
     boolean isSimpleSender = false;
@@ -50,6 +51,8 @@ public class Main {
     }
   }
 
+    /* START SENDER FUNCTIONALITY */
+  
   private static void senderRoutine(Scanner scan) {
     int targetPort, senderPort;
     String data; //User's input
@@ -81,7 +84,7 @@ public class Main {
       while (true) {
 
         //Get message type, create and send message of that type
-        data = scan.next();
+        data = scan.next().toLowerCase();
         switch (data) {
           case "inform":
             informAndUpdate(scan, sender);
@@ -96,12 +99,22 @@ public class Main {
             System.out.println("Incorrect command. Use 'inform', 'query' or 'exit'");
         }
         
+        if(data.equals("exit")){
+          //exit code here...
+          break; //Get out of while
+        }
+        else{
+          System.out.println("What is your next message?");
+        }
       }
     } catch (Exception e) {
       e.printStackTrace();
     }
   }
 
+  //Perform an inform and update
+  //a. Get list of file paths and file sizes from user that they are willing to share
+  //b. Send this data to the UDPSender and allow it to handle sending the request
   private static void informAndUpdate(Scanner scan, UDPSender sender) 
           throws SocketException, IOException, InterruptedException{
     ArrayList<String> fileNames = new ArrayList<String>();
@@ -124,14 +137,30 @@ public class Main {
     sender.sendInformAndUpdate(fileNames, fileSizes);
   }
 
-  private static void query(Scanner scan, UDPSender sender) {
-
+  //Perform a query (single keyword)
+  //a. Get user's query and send
+  private static void query(Scanner scan, UDPSender sender) 
+          throws SocketException, IOException, InterruptedException {
+    String query;
+    
+    System.out.println("Insert your query");
+    query = scan.next();
+    
+    sender.sendQuery(query);
+    
   }
 
-  private static void exit(UDPSender sender) {
-
+  //Perform exit
+  //a. send exit message
+  private static void exit(UDPSender sender) throws SocketException, 
+          IOException, InterruptedException {
+    sender.sendExit();
   }
+  /* END SENDER FUNCTIONALITY */
 
+  
+  /* START SERVER FUNCTIONALITY */
+  
   private static void serverRoutine(Scanner scan) {
     String serverName;
     int port;
@@ -149,6 +178,7 @@ public class Main {
     server.stopListening(); //Terminate server
   }
 
+  /*END SERVER FUNCTIONALITY*/
   //Method exclusively for testing
   //Specifically for sending data to hosts without packet headers
   private static void simpleSenderRoutine(Scanner scan) {

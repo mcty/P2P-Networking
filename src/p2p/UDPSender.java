@@ -50,22 +50,45 @@ public class UDPSender extends Host{
     if(socket!=null) socket.close();
   }
   
-  public void sendInformAndUpdate(ArrayList<String> fileNames, ArrayList<Long> fileSizes) throws SocketException, IOException, InterruptedException{
+  //Using a list of filenames and filesizes, creates the payload for the inform and update message, then sends it
+  public void sendInformAndUpdate(ArrayList<String> fileNames, ArrayList<Long> fileSizes) 
+          throws SocketException, IOException, InterruptedException{
     String payload = ""; //Payload of the request (meaning the headers)
     String CRLF = "\r\n";
     
+    //Create payload
+    //Follows the format: "Filename: filename filesize<CRLF>Filename: filename filesize<CRLF>" (any number of files
     for(int currentFile = 0; currentFile < fileNames.size(); currentFile++){
       payload+= "Filename: " + encodeString(fileNames.get(currentFile))+ " " + fileSizes.get(currentFile) + CRLF;
     }
-    payload += CRLF;
     
-    sendData(payload.getBytes(), "inform");
+    sendData(payload.getBytes(), "inform"); //Send
+  }
+  
+  //Given a query string, creates the formatted payload for query message and sends it
+  public void sendQuery(String query) throws SocketException, 
+          IOException, InterruptedException{
+    String payload = "";
+    String CRLF = "\r\n";
+    
+    //Create payload
+    //Follows the format: "Search-term: query<CR><LF>". Currently, only supports one term
+    payload = "Search-term: " + encodeString(query) + CRLF;
+    
+    sendData(payload.getBytes(),"exit");
+  }
+  
+  //Sends exit message
+  public void sendExit() throws SocketException, IOException, 
+          InterruptedException{
+    sendData("*".getBytes(),"exit");
   }
   
   //Send an amount of data to the target machine
-  public void sendData(byte[] data, String method) throws SocketException, IOException, InterruptedException{
+  public void sendData(byte[] data, String method) 
+          throws SocketException, IOException, InterruptedException{
     //Managing RDT
-    ACKTimer timer;
+    ACKTimer timer; //Used to resend packets when their ACKs are not received (covers corruption and packet loss)
     
     //Data to put in Application-Header
     String hostName = getHostName();
