@@ -1,5 +1,4 @@
-
-
+package p2p;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -51,7 +50,7 @@ public class UDPSender extends Host{
     if(socket!=null) socket.close();
   }
   
-  public void sendInformAndUpdate(ArrayList<String> fileNames, ArrayList<Long> fileSizes){
+  public void sendInformAndUpdate(ArrayList<String> fileNames, ArrayList<Long> fileSizes) throws SocketException, IOException, InterruptedException{
     String payload = ""; //Payload of the request (meaning the headers)
     String CRLF = "\r\n";
     

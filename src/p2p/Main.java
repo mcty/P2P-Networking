@@ -1,6 +1,8 @@
+package p2p;
 
-import finalproject.UDPSender;
-import finalproject.UDPServer;
+
+import UDPSender;
+import UDPServer;
 import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
