@@ -8,6 +8,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -50,14 +51,24 @@ public class UDPSender extends Host{
     if(socket!=null) socket.close();
   }
   
+  public void sendInformAndUpdate(ArrayList<String> fileNames, ArrayList<Long> fileSizes){
+    String payload = ""; //Payload of the request (meaning the headers)
+    String CRLF = "\r\n";
+    
+    for(int currentFile = 0; currentFile < fileNames.size(); currentFile++){
+      payload+= "Filename: " + encodeString(fileNames.get(currentFile))+ " " + fileSizes.get(currentFile) + CRLF;
+    }
+    payload += CRLF;
+    
+    sendData(payload.getBytes(), "inform");
+  }
   
   //Send an amount of data to the target machine
-  public void sendData(byte[] data) throws SocketException, IOException, InterruptedException{
+  public void sendData(byte[] data, String method) throws SocketException, IOException, InterruptedException{
     //Managing RDT
     ACKTimer timer;
     
     //Data to put in Application-Header
-    String method = "inform"; //TODO: need to allow client program to specify method
     String hostName = getHostName();
     String hostIP = getIPAddress();
     boolean SEQ = false; //Sequence number (0/false or 1/true

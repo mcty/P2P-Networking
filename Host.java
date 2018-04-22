@@ -4,7 +4,9 @@ import java.net.InetAddress;
 
 //Contains functionality shared between servers and senders
 public class Host extends Thread{
-  public static boolean DEBUG = true;
+  public final static boolean DEBUG = true;
+  public final static int MTU = 128; //Maximum Tranmission Unit - Number of bytes that can be sent at once
+  public final static int MSS = MTU - 8 - 20; //Maximum Segment Size - The number of bytes that the payload is allowed to be (accounts for UDP and IP headers, 8 bytes and 20 bytes respectively)
   protected String IPAddress = null;
   protected String hostName = null;
   
@@ -66,5 +68,16 @@ public class Host extends Thread{
       }
     }
     return hostName;
+  }
+  
+  //Encode a string so that requests conform to format
+  //i.e. replace special characters with placeholders
+  public final String encodeString(String str){
+    return str.replaceAll(" ","%20");
+  }
+  
+  //Decode string to original form
+  public final String decodeString(String str){
+    return str.replaceAll("%20"," ");
   }
 }
