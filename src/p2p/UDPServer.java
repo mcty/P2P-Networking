@@ -88,6 +88,7 @@ public class UDPServer extends Host {
 			printPacketReceived(PacketNum, SEQ, EOM, SenderIP, packet.getLength());
 			if(EOM == 1){
 				printDataReceived(SEQ,EOM,SenderIP,messageT);
+                                processMessage(message_Type, userData, Sender, SenderIP);
 				PacketNum = 0;
 				SEQ_previous = 1;
                                 messageT = "";
@@ -106,6 +107,79 @@ public class UDPServer extends Host {
       stopListening();
       e.printStackTrace();
     }
+  }
+  
+  private void processMessage(String messageType, String payload,
+          String hostname, String hostIP){
+    switch(messageType){
+      case "inform":
+        performInformAndUpdate(payload, hostname, hostIP);
+        break;
+      case "query":
+        performQuery(payload, hostname, hostIP);
+        break;
+      case "exit":
+        performExit(hostname, hostIP);
+        break;
+      default:
+        System.out.println("Unexpected message-type");
+    }
+  }
+  
+  private void performInformAndUpdate(String payload, String hostname, 
+          String hostIP){
+    String currentFileName;
+    long currentFileSize;
+    Scanner scan; 
+    
+    //Process inform and update request
+    scan = new Scanner(payload);
+    while(scan.hasNext()){ //While there's another file...
+      //Get file data from payload
+      while(scan.next().equals("")); //Ignore any newlines, and ignore 'Filename:'
+      currentFileName = decodeString(scan.next());
+      currentFileSize = scan.nextLong();
+      
+      //Insert file into db
+      System.out.println("Adding file record: {File: '"+currentFileName
+              + "', File size: '" + currentFileSize +"bytes'}, associated with host"
+              + "{" + hostname + " at IP address " + hostIP);
+    }
+    
+    //Send response to sender (if file already exists, send error, else, send OK
+    send("Entry added".getBytes(), "200", "OK", hostIP);
+  }
+  
+  private void performQuery(String payload, String hostname, String hostIP){
+    Scanner scan;
+    String query;
+    
+    //Process query request
+    //Get query
+    scan = new Scanner(payload);
+    scan.next(); //Ignore 'Query'
+    query = decodeString(scan.next());
+    System.out.println("Searching files with keyword '" + query + "'.");
+    
+    //Perform query on db
+    //TODO
+    
+    //Send response specifying results of query to sender
+    //TODO
+  }
+  
+  private void performExit(String hostname, String hostIP){
+    //Complete exit request by removing entries from db
+    System.out.println("Removing file records for peer " + hostname + " with "
+            + "IP address " + hostIP);
+    
+    //Send response to sender
+    send("Entries removed".getBytes(), "200", "OK", hostIP);
+  }
+  
+  private void send(byte[] data, String statusCode, String statusPhrase, 
+          String hostIP){
+    
   }
   
   //Packet Recieved Print Statement

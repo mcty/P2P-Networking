@@ -85,6 +85,7 @@ public class Main {
 
         //Get message type, create and send message of that type
         data = scan.next().toLowerCase();
+        scan.nextLine(); //Done to ignore newline
         switch (data) {
           case "inform":
             informAndUpdate(scan, sender);
@@ -144,7 +145,7 @@ public class Main {
     String query;
     
     System.out.println("Insert your query");
-    query = scan.next();
+    query = scan.nextLine();
     
     sender.sendQuery(query);
     
@@ -192,11 +193,11 @@ public class Main {
     }
 
     //Source port
-    System.out.println("What is the host's port (port data is sent from and data received by client)?");
+    System.out.println("What is the host's port (the port that data is sent from and data received by client)?");
     sourcePort = scan.nextInt();
 
     //Target port
-    System.out.println("What is the target's port (port data is read from on server side)?"); //Get target port
+    System.out.println("What is the target's port (the port that data is read from on server side)?"); //Get target port
     targetPort = scan.nextInt();
 
     //Socket
