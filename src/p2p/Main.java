@@ -64,10 +64,10 @@ public class Main {
       UDPSender sender = new UDPSender(); //Create inital sender
       System.out.println("Hello host " + sender.getHostName());
 
-      System.out.println("What is the target's port (port data is read from on server side)?"); //Get target port
+      System.out.println("What is the target's port (the port that data is read from on server side)?"); //Get target port
       targetPort = scan.nextInt();
 
-      System.out.println("What is the host's port (port data is sent from and data received by client)?"); //Get host port
+      System.out.println("What is the host's port (the port that data is sent from and data received by client)?"); //Get host port
       senderPort = scan.nextInt();
       sender.setHostPort(senderPort);
 

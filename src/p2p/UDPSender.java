@@ -75,7 +75,7 @@ public class UDPSender extends Host{
     //Follows the format: "Search-term: query<CR><LF>". Currently, only supports one term
     payload = "Search-term: " + encodeString(query) + CRLF;
     
-    sendData(payload.getBytes(),"exit");
+    sendData(payload.getBytes(),"query");
   }
   
   //Sends exit message
@@ -157,6 +157,10 @@ public class UDPSender extends Host{
     }
     
     System.out.println("Full message sent!");
+  }
+  
+  public byte[] receive(){
+    return null;
   }
   
   /* GETTERS/SETTERS */
