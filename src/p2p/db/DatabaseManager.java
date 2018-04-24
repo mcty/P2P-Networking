@@ -4,7 +4,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-//import java.sql.*;
+
 
 public class DatabaseManager {
   //Database and connectivity info
@@ -13,7 +13,6 @@ public class DatabaseManager {
   private static final String DB_PASS = "";
   private static final String DB_URL = "jdbc:h2:~/"+DATABASE_NAME;
   private static final String JDBC_DRIVER = "org.h2.Driver";
-  
   private static Connection dbConnection = null;
   
   private DatabaseManager(){;}
@@ -23,27 +22,55 @@ public class DatabaseManager {
     
     //Register JDBC driver
     System.out.print("\t>>Registering JDBC driver..");
-    try{
-      Class.forName(JDBC_DRIVER).newInstance();
-    }catch(Exception e){
-      System.out.println("Could not use JDBC driver");
-      e.printStackTrace();
-    }
+    registerDriver();
     System.out.println("\tSuccess!");
     
     //Initalize connection with DB
     System.out.print("\t>>Establishing connection with database..");
-    try{
-      dbConnection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
-    }catch(Exception e){
-      System.out.println("Could not establish connection - make sure only app is connected to db");
-      e.printStackTrace();
-    }
+    connectToDB();
     System.out.println("\tSuccess!");
     
     //Initialize DB Table PEER if it doesn't exist already
     System.out.println("\t>>Creating tables..");
     System.out.print("\t\t>>Creating table PEER..");
+    addPeerTable();
+    System.out.println("\tSuccess!");
+    
+    //Initialize DB Table FILE if it doesn't exist already
+    System.out.print("\t\t>>Creating table FILE..");
+    addFileTable();
+    System.out.println("\tSuccess!");
+    
+    //Initialization complete
+    System.out.println("Database initalized");
+    return true;
+  }
+  
+  /* START INITIALIZATION METHODS */
+  //Registers JDBC driver
+  private static void registerDriver(){
+     try{
+      Class.forName(JDBC_DRIVER).newInstance();
+    }catch(Exception e){
+      System.out.println("Could not use JDBC driver");
+      e.printStackTrace();
+      System.exit(1);
+    }
+  }
+  
+  //Establishes connection with database
+  private static void connectToDB(){
+    try{
+      dbConnection = DriverManager.getConnection(DB_URL, DB_USER, DB_PASS);
+    }catch(Exception e){
+      System.out.println("Could not establish connection - make sure only app is connected to db");
+      e.printStackTrace();
+      System.exit(2);
+    }
+  }
+  
+  //Adds PEER table to database if it doesn't exist already
+  private static void addPeerTable(){
     try{
     PreparedStatement stmt = dbConnection.prepareStatement(""+
             "CREATE TABLE IF NOT EXISTS PEER(\n"+
@@ -59,12 +86,12 @@ public class DatabaseManager {
     catch(Exception e){
       System.out.println("Could not create table PEER");
       e.printStackTrace();
+      System.exit(3);
     }
-    System.out.println("\tSuccess!");
-
-    
-    //Initialize DB Table FILE if it doesn't exist already
-    System.out.print("\t\t>>Creating table FILE..");
+  }
+  
+  //Adds FILE table to database if it doesn't exist already
+  private static void addFileTable(){
     try{
     PreparedStatement stmt = dbConnection.prepareStatement(""+
             "CREATE TABLE IF NOT EXISTS FILE(\n" +
@@ -80,12 +107,12 @@ public class DatabaseManager {
     catch(Exception e){
       System.out.println("Could not create table FILE");
       e.printStackTrace();
+      System.exit(4);
     }
-    System.out.println("\tSuccess!");
-
-    System.out.println("Database initalized");
-    return true;
   }
+  /* END INITIALIZATION METHODS*/
+  
+  /* START DATABASE MANIPULATION METHODS*/
   
   //Add peer to database
   public static boolean addPeer(String hostname, String IP){
@@ -178,6 +205,7 @@ public class DatabaseManager {
   public static boolean removePeer(int peerID){
     try{
       //Create statement to remove all files associated with peer
+      /*
       PreparedStatement stmt = dbConnection.prepareStatement(""
               + "DELETE FROM FILE\n"
               + "WHERE HOSTPEERID = ?");
@@ -186,9 +214,12 @@ public class DatabaseManager {
       //Execute, 
       stmt.executeUpdate();
       stmt.close();
+      */
+      
+      removePeerFiles(peerID);
       
       //Create statement to remove peer
-      stmt = dbConnection.prepareStatement(""
+      PreparedStatement stmt = dbConnection.prepareStatement(""
               + "DELETE FROM PEER\n"
               + "WHERE PEERID = ?");
       stmt.setInt(1, peerID);
@@ -201,6 +232,30 @@ public class DatabaseManager {
       System.out.println("Unable to remove peer or peer's files");
       e.printStackTrace();
       return false;
+    }
+    
+    return true;
+  }
+  
+  public static boolean removePeerFiles(String hostname, String IP){
+    return removePeerFiles(getPeerID(hostname, IP));
+  }
+  
+  public static boolean removePeerFiles(int peerID){
+    //Create statement to remove all files associated with peer
+    try{
+      PreparedStatement stmt = dbConnection.prepareStatement(""
+              + "DELETE FROM FILE\n"
+              + "WHERE HOSTPEERID = ?");
+      stmt.setInt(1, peerID);
+      
+      //Execute, 
+      stmt.executeUpdate();
+      stmt.close();
+    }catch(Exception e){
+      System.out.println("Unable to remove peer's files");
+      e.printStackTrace();
+      System.exit(0);
     }
     
     return true;
@@ -239,6 +294,8 @@ public class DatabaseManager {
       return;
     }
   }
+  
+  /* END DATABASE MANIPULATION METHODS */
   
   public static void exitDatabase(){
     if(dbConnection != null)
