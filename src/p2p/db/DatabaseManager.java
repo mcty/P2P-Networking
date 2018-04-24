@@ -112,8 +112,8 @@ public class DatabaseManager {
   }
   /* END INITIALIZATION METHODS*/
   
-  /* START DATABASE MANIPULATION METHODS*/
-  
+ 
+  /* START DATABASE MANIPULATION METHODS*/  
   //Add peer to database
   public static boolean addPeer(String hostname, String IP){
     try{
@@ -283,7 +283,7 @@ public class DatabaseManager {
         long fileSize = results.getLong("FILESIZE");
         String host = results.getString("HOSTNAME");
         String IP = results.getString("IP");
-        System.out.println(path + "\t" + fileSize + "bytes\t" + host + "\t" + IP);
+        System.out.println(path + "\t\t" + fileSize + " bytes\t\t" + host + "\t\t" + IP);
       }
       
       results.close();
@@ -305,5 +305,12 @@ public class DatabaseManager {
         System.out.println("Could not close database connection");
         e.printStackTrace();
       }
+  }
+  
+  public static void printCurrentDBState(){
+    System.out.println("\n\nDATABASE STATE:");    
+    System.out.println("FILEPATH \t\t FILE SIZE \t\t FILE's HOST \t\t HOST'S IP");
+    queryFiles("");
+    System.out.println("\n\n");
   }
 }

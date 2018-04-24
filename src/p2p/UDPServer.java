@@ -132,6 +132,8 @@ public class UDPServer extends Host {
       default:
         System.out.println("Unexpected message-type");
     }
+    
+    DatabaseManager.printCurrentDBState();
   }
   
   private void performInformAndUpdate(String payload, String hostname, 
@@ -153,7 +155,7 @@ public class UDPServer extends Host {
       
       //Insert file into db
       System.out.println("Adding file record: {File: '"+currentFileName
-              + "', File size: '" + currentFileSize +" bytes'}, associated with host"
+              + "', File size: '" + currentFileSize +" bytes'}, associated with host "
               + hostname + " at IP address " + hostIP);
       DatabaseManager.addFile(currentFileName, currentFileSize, hostname, hostIP);
       
