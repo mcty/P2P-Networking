@@ -7,10 +7,11 @@ import java.net.InetAddress;
 //Contains functionality shared between servers and senders
 public class Host extends Thread{
   public final static boolean DEBUG = true;
+  public final static String CRLF = "\r\n";
   public final static int MTU = 128; //Maximum Tranmission Unit - Number of bytes that can be sent at once
   public final static int MSS = MTU - 8 - 20; //Maximum Segment Size - The number of bytes that the payload is allowed to be (accounts for UDP and IP headers, 8 bytes and 20 bytes respectively)
-  protected String IPAddress = null;
-  protected String hostName = null;
+  private String IPAddress = null;
+  private String hostName = null;
   
   public Host(){
     this("default");

@@ -62,7 +62,8 @@ public class UDPSender extends Host{
       payload+= "Filename: " + encodeString(fileNames.get(currentFile))+ " " + fileSizes.get(currentFile) + CRLF;
     }
     
-    sendData(payload.getBytes(), "inform"); //Send
+    //sendData(payload.getBytes(), "inform"); //Send
+    performMessage(payload.getBytes(), "inform");
   }
   
   //Given a query string, creates the formatted payload for query message and sends it
@@ -75,13 +76,128 @@ public class UDPSender extends Host{
     //Follows the format: "Search-term: query<CR><LF>". Currently, only supports one term
     payload = "Search-term: " + encodeString(query) + CRLF;
     
-    sendData(payload.getBytes(),"query");
+    //sendData(payload.getBytes(),"query");
+    performMessage(payload.getBytes(),"query");
   }
   
   //Sends exit message
   public void sendExit() throws SocketException, IOException, 
           InterruptedException{
-    sendData("*".getBytes(),"exit");
+    //sendData("*".getBytes(),"exit");
+    performMessage("*".getBytes(),"exit");
+
+  }
+  
+  public void performMessage(byte[] data, String method){
+    ByteArrayInputStream byteStream = new ByteArrayInputStream(data); //Stream of payload data
+    Boolean SEQ = false; //SEQ flag of message
+    DatagramPacket currentPacket = null;  //Current packet being sent
+    int packetNum = 0;
+    while(byteStream.available()>0){ //While data still needs to be sent..
+      //Create packet of next data
+      currentPacket = createPacket(byteStream, method, SEQ); //Create packet with rdt app-headers and headers specific to required format
+      if(currentPacket == null){ return; } //If no packet created, packet size is an issue. Don't send null packet.
+      
+      //Print packet data
+      byte[] packetData = currentPacket.getData();
+      System.out.println(
+              "\n\n| - - - - START PACKET (" + packetNum++ + ") - - - - - - - - |\n"
+              + new String(packetData) 
+              + "|- - - - END PACKET (total length: " + packetData.length + ") - - - - -| \n");
+      
+      //Send packet
+      rdt_send(currentPacket, SEQ);
+      try{ //Give time so that everything doesn't happen too quickly
+        Thread.sleep(1200);
+      }catch(Exception e){
+        System.out.println("Unable to have thread wait");
+        e.printStackTrace();
+      }
+      packetNum++;
+    }
+    System.out.println("Full message sent!");
+    System.out.println("Waiting for server response..");
+    getResponse(); //Get response from destination machine after server processes
+    
+  }
+  
+  private DatagramPacket createPacket(ByteArrayInputStream byteStream, String method,
+          Boolean SEQ){
+    //Application-header data
+    String hostName = getHostName();
+    String hostIP = getIPAddress();
+    boolean EOM = false; //End of Message flag. True when last packet of message
+    
+    //App-header first row
+    String firstRow = method + " " + hostName + " " + hostIP + CRLF;
+    
+    //Amounts of data to send
+    int headerChars = firstRow.length() + "0 0\r\n".length() + CRLF.length();
+    int availableBufSize = bufSize - headerChars; //This is the only amount we can send. If less than 0, no data can be sent at all
+    if(availableBufSize <= 0){
+      System.out.println("No data can be sent using the current configuration -- Increase Buffer Size / MTU");
+      return null;
+    }
+    
+    //Data to send from byte stream
+    byte[] appDataBuffer = new byte[availableBufSize];
+    int bytesRead = 0;
+    try{
+      bytesRead = byteStream.read(appDataBuffer);
+    }catch(Exception e){
+      System.out.println("Could not read data from input stream to buffer");
+      e.printStackTrace();
+    }
+    
+    //If entire buffer not filled, only get array containing data
+      if(bytesRead< availableBufSize){ 
+        appDataBuffer = Arrays.copyOf(appDataBuffer, bytesRead);
+      }
+      
+      //If there are no more bytes, set EOM flag (end of message flag)
+      if(byteStream.available()==0) EOM = true;
+    
+      //Create packet's exact data
+      //int packetSize = headerChars + bytesRead;
+      String secondRow = "" + (SEQ?1:0) + " " + (EOM?1:0) + CRLF;
+      byte[] packetData = (firstRow + secondRow + new String(appDataBuffer) + CRLF).getBytes();
+      return new DatagramPacket(packetData, packetData.length, targetIPAddr, targetPort);
+  }
+  
+  private void rdt_send(DatagramPacket packet, Boolean SEQ){
+    //Send
+      try{
+        socket.send(packet);
+      }catch(Exception e){
+        System.out.println("Could not send packet");
+        e.printStackTrace();
+        return;
+      }
+      
+      //Wait for correct ACK
+      ACKTimer timer = new ACKTimer(socket, packet, 1000); //Timer that will resend packet
+      byte[] ACKdata = { (byte)(SEQ?0:1) }; //Where ACK data will be placed, intialize to incorrect ACK value (which would be the value not equal to SEQ since we need ACK corresponding to sent packet)
+      DatagramPacket ack = new DatagramPacket(ACKdata, 1); //ACK packet
+      timer.start(); //Start timer
+      try{
+          while(ACKdata[0] != (SEQ?1:0)){ //While incorrect ACK data, wait for correct ACK (this prevents delayed ACKS from affecting system)
+            socket.receive(ack); //Constantly receive acks until we get the correct one
+            System.out.println("Got ACK:");
+            System.out.println("\tACK Data Expected:" + (SEQ?1:0) + "\tAck Data Got " + ACKdata[0]);
+          }
+          System.out.println("Correct ACK received, continue sending data.\n");
+      }catch(Exception e){
+        System.out.println("Could not receive ACK for server");
+        e.printStackTrace();
+      }
+      timer.stop(); //End timer after correct ACK
+
+      //Update SEQ
+      SEQ = !SEQ;
+  }
+  
+  private void getResponse(){
+    //Get response from destination, and make sure response is received reliably (i.e. send ACKs)
   }
   
   //Send an amount of data to the target machine
