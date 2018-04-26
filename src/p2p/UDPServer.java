@@ -164,12 +164,15 @@ public class UDPServer extends Host {
     }
     
     //Send response to sender (if file already exists, send error, else, send OK
-    //send("Entry added".getBytes(), "200", "OK", hostIP);
+    performMessage("Entries have been added".getBytes(), 
+            new String[]{"200", "OK"}, hostIP, 50001, receivingSocket);
   }
   
   private void performQuery(String payload, String hostname, String hostIP){
     Scanner scan;
     String query;
+    FileData[] results;
+    String resultText = "";
     
     //Process query request
     //Get query
@@ -178,12 +181,16 @@ public class UDPServer extends Host {
     query = decodeString(scan.next());
     System.out.println("Searching files with keyword '" + query + "'.");
     
-    //Perform query on db
-    //TODO
-    DatabaseManager.queryFiles(query);
+    //Perform query on db, create response to peer
+    results = DatabaseManager.queryFiles(query);
+    for(FileData file: results){
+        resultText+= encodeString(file.getPath()) + " " + + file.getSize() + " " 
+                + file.getHostPeerIP() + CRLF;
+    }
     
     //Send response specifying results of query to sender
-    //TODO
+    performMessage(resultText.getBytes(),
+            new String[]{"200","OK"}, hostIP, 50001, receivingSocket);
   }
   
   private void performExit(String hostname, String hostIP){
@@ -193,92 +200,37 @@ public class UDPServer extends Host {
     DatabaseManager.removePeer(hostname, hostIP);
     
     //Send response to sender
-    //send("Entries removed".getBytes(), "200", "OK", hostIP);
+    performMessage("Entries removed".getBytes(),
+            new String[]{"200","OK"}, hostIP, 50001, receivingSocket);
+  }
+  
+  private void performMessage(byte[] data, String[] headerData, String IP,
+          int port, DatagramSocket socket){
+      try{
+          performMessage(data, headerData, InetAddress.getByName(IP), port,
+                  socket);
+      }catch(Exception e){
+          System.out.println("Unable to send response to peer");
+          e.printStackTrace();
+      }
   }
   
   public void close(){
     DatabaseManager.exitDatabase();
   }
   
-  private void send(byte[] data, String statusCode, String statusPhrase, 
-          String hostIP){
-    //Socket to send from
-    DatagramSocket socket = receivingSocket;
-    if(socket == null){
-      System.out.println("Error, there is no socket to send from!");
-      return;
-    }
-    
-    //Managing RDT
-    ACKTimer timer; //Used to resend packets when their ACKs are not received (covers corruption and packet loss)
-    
-    //Application-Header String
-    String CRLF = "\r\n";
-    String firstRow = "0 0"+CRLF;
-    String secondRow = statusCode + " " + statusPhrase + CRLF;
-    
-    //Amounts of data to send
-    int availableBufSize = bufSize - firstRow.length() - secondRow.length() - CRLF.length(); //This is the only amount we can send. If less than 0, no data can be sent at all
-    if(availableBufSize <= 0){
-      System.out.println("No data can be sent using the current configuration -- Increase Buffer Size / MTU");
-      return;
-    }
-    
-    //Send data
-    byte[] fullMessageData = (secondRow + new String(data)).getBytes();
-    ByteArrayInputStream byteStream = new ByteArrayInputStream(fullMessageData);
-    int packetNum = 0;
-    boolean SEQ = false;
-    boolean EOM = false;
-    
-    System.out.println("Starting message to peer " + hostIP);
-    try{
-      while(byteStream.available()>0){ //While data remains
-        byte[] packetData = new byte[availableBufSize]; //Read data into buffer
-        int bytesRead = byteStream.read(packetData);
-
-        //If entire buffer not filled, only get array containing data
-        if(bytesRead< availableBufSize){ 
-          packetData = Arrays.copyOf(packetData, bytesRead);
-        }
-
-        //If there are no more bytes, set EOM flag (end of message flag)
-      if(byteStream.available()==0) EOM = true;
-        
-        //Create packet's exact data
-        packetData = (""+ (SEQ?1:0) + " " + (EOM?1:0) + CRLF + new String(packetData)).getBytes();
-        int packetSize = bytesRead+firstRow.length();
-
-        //Send packet
-        System.out.println(
-                "\n\n| - - - - START PACKET (" + packetNum++ + ") - - - - - - - - |\n"
-                + new String(packetData) 
-                + "|- - - - END PACKET (total length: " + packetSize + ") - - - - -| \n");
-        DatagramPacket packet = new DatagramPacket(packetData, packetData.length, InetAddress.getByName(hostIP), 50001); //TODO hardcoded host port
-        socket.send(packet);
-
-        //Wait for correct ACK
-        timer = new ACKTimer(socket, packet, 1000); //Timer that will resend packet
-        byte[] ACKdata = { (byte)(SEQ?0:1) }; //Where ACK data will be placed, intialize to incorrect ACK value (which would be the value not equal to SEQ since we need ACK corresponding to sent packet)
-        DatagramPacket ack = new DatagramPacket(ACKdata, 1); //ACK packet
-        timer.start(); //Start timer
-        while(ACKdata[0] != (SEQ?1:0)){ //While incorrect ACK data, wait for correct ACK (this prevents delayed ACKS from affecting system)
-          socket.receive(ack); //Constantly receive acks until we get the correct one
-          System.out.println("Got ACK:");
-          System.out.println("\tACK Data Expected:" + (SEQ?1:0) + "\tAck Data Got " + ACKdata[0]);
-        }
-        timer.stop(); //End timer after correct ACK
-        System.out.println("Correct ACK received, continue sending data.\n");
-
-        //Update SEQ for new packet
-        SEQ = !SEQ;
-        Thread.sleep(1200);
-      }
-    }catch(Exception e){
-      e.printStackTrace();
-    }
-    
-    System.out.println("Full message sent!");
+  public String createHeaders(String[] params){
+      if(params == null){ return null;}
+      
+      String statusCode = params[0];
+      String statusPhrase = params[1];
+      
+      String headerData = statusCode + " " + statusPhrase + CRLF;
+      return headerData;
+  }
+ 
+  public String getResponse(){
+      return null;
   }
   
   //Packet Recieved Print Statement
@@ -292,7 +244,7 @@ public class UDPServer extends Host {
   public void sendACK(DatagramSocket socket, int SEQ, InetAddress SenderIP, int SenderPort)throws SocketException, IOException, InterruptedException{
 	  byte[] packetData = {(byte)SEQ};
 	  DatagramPacket packet = new DatagramPacket(packetData, packetData.length, SenderIP, SenderPort);
-      socket.send(packet);
+             socket.send(packet);
 	  System.out.println("ACK Sent: " + SEQ);
   }
 }
