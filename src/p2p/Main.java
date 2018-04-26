@@ -56,7 +56,6 @@ public class Main {
   private static void senderRoutine(Scanner scan) {
     int targetPort, senderPort;
     String data; //User's input
-    String messageMethod;
 
     boolean isValid;
 
@@ -135,7 +134,8 @@ public class Main {
       else 
         System.out.println("File not found");
     }     
-    sender.sendInformAndUpdate(fileNames, fileSizes);
+    String responseText = sender.sendInformAndUpdate(fileNames, fileSizes);
+    System.out.println(responseText);
   }
 
   //Perform a query (single keyword)
@@ -147,7 +147,8 @@ public class Main {
     System.out.println("Insert your query");
     query = scan.nextLine();
     
-    sender.sendQuery(query);
+    String responseText = sender.sendQuery(query);
+    System.out.println(responseText);
     
   }
 
@@ -155,7 +156,8 @@ public class Main {
   //a. send exit message
   private static void exit(UDPSender sender) throws SocketException, 
           IOException, InterruptedException {
-    sender.sendExit();
+    String responseText = sender.sendExit();
+    System.out.println(responseText);
   }
   /* END SENDER FUNCTIONALITY */
 
