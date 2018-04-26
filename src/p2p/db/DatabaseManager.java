@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
+import p2p.FileData;
 
 
 public class DatabaseManager {
@@ -178,7 +180,7 @@ public class DatabaseManager {
       
       //Execute, get results
       ResultSet results = stmt.executeQuery();
-      int result = -1;
+      int result;
       if(results.next()){ //If result exists, get it..
         result = results.getInt("PEERID"); //And return peerid
       }
@@ -261,8 +263,9 @@ public class DatabaseManager {
     return true;
   }
   
-  public static void queryFiles(String query){
+  public static FileData[] queryFiles(String query){
     ResultSet results = null;
+    ArrayList<FileData> files = new ArrayList<>();
     
     try{
       //Create statement
@@ -276,7 +279,6 @@ public class DatabaseManager {
       //Execute, get results
       results = stmt.executeQuery();
       
-      
       //Print all results
       while(results.next()){
         String path = results.getString("FILEPATH");
@@ -284,14 +286,17 @@ public class DatabaseManager {
         String host = results.getString("HOSTNAME");
         String IP = results.getString("IP");
         System.out.println(path + "\t\t" + fileSize + " bytes\t\t" + host + "\t\t" + IP);
+        FileData file = new FileData(path, fileSize, IP, 55555); //TODO hardcoded port
+        files.add(file);
       }
       
       results.close();
       stmt.close();
+      return files.toArray(new FileData[files.size()]); //Return results
     }catch(Exception e){
       System.out.println("Unable to get peer id - peer does not exist");
       e.printStackTrace();
-      return;
+      return null;
     }
   }
   
