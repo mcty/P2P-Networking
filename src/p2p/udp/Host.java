@@ -1,4 +1,4 @@
-package p2p;
+package p2p.udp;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -9,27 +9,21 @@ import java.net.InetAddress;
 import java.util.Arrays;
 
 //Contains functionality shared between servers and senders
-public abstract class Host extends Thread{
+public abstract class Host{
   public final static boolean DEBUG = true;
   public final static String CRLF = "\r\n";
   public final static int MTU = 128; //Maximum Tranmission Unit - Number of bytes that can be sent at once
   public final static int MSS = MTU - 8 - 20; //Maximum Segment Size - The number of bytes that the payload is allowed to be (accounts for UDP and IP headers, 8 bytes and 20 bytes respectively)
-  private String IPAddress = null;
-  private String hostName = null;
+  protected String IPAddress = null;
+  protected String hostname = null;
   
   public Host(){
-    this("default");
-  }
-  
-  public Host(String name){
-    super(name);
     getIPAddress(); //Get IPAddress
     getHostName();  //Get Hostname
     if(DEBUG){
       System.out.println("\t>>Created Sender with IP " + getIPAddress());
       System.out.println("\t>>Created Sender with hostname " + getHostName()+"\n");
     }
-    
   }
   
   //Get the IP address of the host
@@ -50,8 +44,8 @@ public abstract class Host extends Thread{
   //Get the hostname of the host
   public final String getHostName(){
     //If hostname is not currently set, set it, then return it
-    if(hostName == null){ 
-      hostName = "";
+    if(hostname == null){ 
+      hostname = "";
       String line;        //Holds each line
       ProcessBuilder pb;  //Used to build procress being ran
       Process pr;         //The actual process
@@ -65,16 +59,16 @@ public abstract class Host extends Thread{
 
         //Get input
         result = new BufferedReader(new InputStreamReader(pr.getInputStream()));
-        while((line = result.readLine())!=null){ hostName += line;}
+        while((line = result.readLine())!=null){ hostname += line;}
         pr.waitFor();   //Wait until process is complete
         result.close(); //Close reader
         }
       catch(Exception e){
         e.printStackTrace();
-        hostName = null;
+        hostname = null;
       }
     }
-    return hostName;
+    return hostname;
   }
   
   //Encode a string so that requests conform to format
@@ -90,7 +84,7 @@ public abstract class Host extends Thread{
   
   /* MESSAGING SENDING AND RECEIVING FUNCTIONALITY */
   
-    public String performMessage(byte[] data, String[] headerData, 
+    public synchronized String performMessage(byte[] data, String[] headerData, 
             InetAddress targetIPAddr, int targetPort, DatagramSocket socket){
       //Message data
       ByteArrayInputStream byteStream = new ByteArrayInputStream(data); //Stream of full-message payload 
@@ -100,7 +94,10 @@ public abstract class Host extends Thread{
       String constantHeaders = createHeaders(headerData); //Create app-header data
       DatagramPacket currentPacket = null;                //Current packet being sent
       int packetNum = 0;  //Current packet number being sent
-
+      
+      //Manage RDT
+      ACKTimer timer = new ACKTimer(socket);
+      
       while(byteStream.available()>0){ //While data still needs to be sent..
         //Create packet of next data
         currentPacket = createPacket(byteStream, constantHeaders, SEQ,
@@ -115,7 +112,7 @@ public abstract class Host extends Thread{
                 + "|- - - - END PACKET (total length: " + packetData.length + ") - - - - -| \n");
 
         //Send packet
-        rdt_send(socket, currentPacket, SEQ);
+        rdt_send(socket, currentPacket, SEQ, timer);
         SEQ = !SEQ;
         try{ //Give time so that everything doesn't happen too quickly
           Thread.sleep(1200);
@@ -133,7 +130,7 @@ public abstract class Host extends Thread{
   abstract public String createHeaders(String[] params);
   
   //Creates packets
-  private DatagramPacket createPacket(ByteArrayInputStream byteStream, 
+  protected DatagramPacket createPacket(ByteArrayInputStream byteStream, 
           String appHeaders, boolean SEQ, InetAddress targetIPAddr,
           int targetPort){
     //Other application-header data
@@ -173,8 +170,9 @@ public abstract class Host extends Thread{
   }
   
   private void rdt_send(DatagramSocket socket, DatagramPacket packet, 
-          boolean SEQ){
-    //Send
+          boolean SEQ, ACKTimer timer){
+      long startTime, endTime;
+      //Send
       try{
         socket.send(packet);
       }catch(Exception e){
@@ -184,9 +182,10 @@ public abstract class Host extends Thread{
       }
       
       //Wait for correct ACK
-      ACKTimer timer = new ACKTimer(socket, packet, 1000); //Timer that will resend packet
       byte[] ACKdata = { (byte)(SEQ?0:1) }; //Where ACK data will be placed, intialize to incorrect ACK value (which would be the value not equal to SEQ since we need ACK corresponding to sent packet)
       DatagramPacket ack = new DatagramPacket(ACKdata, 1); //ACK packet
+      timer.setPacketToResend(packet);
+      startTime = System.currentTimeMillis();
       timer.start(); //Start timer
       try{
           while(ACKdata[0] != (SEQ?1:0)){ //While incorrect ACK data, wait for correct ACK (this prevents delayed ACKS from affecting system)
@@ -199,10 +198,12 @@ public abstract class Host extends Thread{
         System.out.println("Could not receive ACK for server");
         e.printStackTrace();
       }
+      endTime = System.currentTimeMillis();
       timer.stop(); //End timer after correct ACK
+      timer.updateInterval((int)(endTime-startTime));
   }
   
   //Get response from destination, and make sure response is received reliably (i.e. send ACKs)
-  abstract public String getResponse();
+  public String getResponse(){return null;}
   
 }

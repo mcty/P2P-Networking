@@ -1,8 +1,8 @@
 package p2p;
 
 
-import p2p.UDPSender;
-import p2p.UDPServer;
+import p2p.udp.UDPSender;
+import p2p.udp.UDPServer;
 import java.io.File;
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -173,12 +173,12 @@ public class Main {
     System.out.println("What is the server's port (the port being listened to)?"); //The port the server is listening to
     port = scan.nextInt();
 
-    UDPServer server = new UDPServer(serverName, port); //Create and start the server itself
-    server.start();
+    UDPServer server = new UDPServer(port); //Create and start the server itself
+    server.run();
 
     System.out.println("Okay, server has been set up!");
     while (!scan.next().equals("stop")); //Just wait until told to stop
-    server.stopListening(); //Terminate server
+    server.close(); //Terminate server
   }
 
   /*END SERVER FUNCTIONALITY*/

@@ -6,6 +6,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import p2p.FileData;
+import p2p.FileData;
 
 
 public class DatabaseManager {
@@ -129,8 +130,8 @@ public class DatabaseManager {
       stmt.executeUpdate();
       stmt.close();
     }catch(Exception e){
-      System.out.println("Unable to add peer");
-      e.printStackTrace();
+      System.out.println("Peer already in Database");
+      //e.printStackTrace();
       return false;
     }
     
