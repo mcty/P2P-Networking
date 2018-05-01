@@ -16,9 +16,9 @@ import p2p.tcp.tcpClient;
 public class ClientMain {
 
   public static final boolean DEBUG = true;
-
   public static boolean actserve = false;
   
+  public static tcpListen listenThread = null;
   public static void main(String[] args) {
     Scanner scan = new Scanner(System.in);
     senderRoutine(scan);
@@ -49,7 +49,7 @@ public class ClientMain {
             //byte[] targetAddress = {10,8,101,(byte)172};
 
             //Send data until user exits
-            System.out.println("Okay, starting communication with server. Type 'exit' to end communication.\n");
+            System.out.println("Okay, starting communication with server. Use 'inform', 'query', 'exit' or 'download'. Type 'exit' to end communication.\n");
             sender.startSender(targetAddress, targetPort); //Start sender
             while (true) {
 
@@ -75,11 +75,12 @@ public class ClientMain {
                     download(scan);
                     break;
                 default:
-                System.out.println("Incorrect command. Use 'inform', 'query', 'exit' or 'download'");
+                    defaultSend(data, sender);
                 }
         
                 if(data.equals("exit")){
                     //exit code here...
+                    System.exit(0);
                     break; //Get out of while
                 }
                 else{
@@ -96,6 +97,10 @@ public class ClientMain {
   //b. Send this data to the UDPSender and allow it to handle sending the request
   private static void informAndUpdate(Scanner scan, UDPSender sender) 
           throws SocketException, IOException, InterruptedException{
+    if(actserve){
+        listenThread.kill();
+        listenThread = null;
+    }
     ArrayList<String> fileNames = new ArrayList<String>();
     ArrayList<Long>fileSizes = new ArrayList<Long>();
     File currentFile = null;
@@ -115,8 +120,9 @@ public class ClientMain {
     }     
     String responseText = sender.sendInformAndUpdate(fileNames, fileSizes);
     System.out.println(responseText);
-    tcpListen listenThread = new tcpListen("listener", 50007, fileNames);
+    listenThread = new tcpListen("listener", 5009, fileNames);
     listenThread.start();
+    actserve = true;
   }
 
   //Perform a query (single keyword)
@@ -155,5 +161,11 @@ public class ClientMain {
     String responseText = sender.sendExit();
     System.out.println(responseText);
   }
+  
+  public static void defaultSend(String method, UDPSender sender) throws SocketException, 
+          IOException, InterruptedException{
+        String responseText = sender.sendUnknown(method);
+        System.out.println(responseText);
+    }
   /* END SENDER FUNCTIONALITY */
 }

@@ -23,6 +23,10 @@ public class tcpListen extends Thread{
     //private string fname;
     private ArrayList<String> servedFiles;
     
+    private ServerSocket ssock = null;
+    private Socket clientConnectionSocket = null;
+    private boolean  exit = false;
+    
     public tcpListen(String name, int port, ArrayList<String> servedFiles){
         super(name);
         this.port = port;
@@ -30,15 +34,15 @@ public class tcpListen extends Thread{
     }
     
     public void run(){
-        ServerSocket ssock = null;
+        //ServerSocket ssock = null;
         try{
             String result;
             String tsPort;
             boolean isAval = false;
-            while(true){
-                ssock = new ServerSocket(50007);
-                System.out.println("Start of ServerLoop.");
-                Socket clientConnectionSocket = ssock.accept();
+            while(!exit){
+                ssock = new ServerSocket(5009);
+                System.out.println("Start of Serverloop.");
+                clientConnectionSocket = ssock.accept();
                 InetAddress IA = InetAddress.getByName("localhost");
                 BufferedReader inFromClient = new BufferedReader(new InputStreamReader(clientConnectionSocket.getInputStream()));
                 DataOutputStream outToClient = new DataOutputStream(clientConnectionSocket.getOutputStream());
@@ -63,12 +67,35 @@ public class tcpListen extends Thread{
                     }
                 }
                 System.out.println("Socket Closed.");
+                clientConnectionSocket.close();
                 ssock.close();
             }
             
         } catch(Exception e){
-            e.printStackTrace();
+            if(!exit) e.printStackTrace();
         }
         System.out.println("Stopped tcpListener. No longer serving files");
+    }
+    
+    public void kill(){
+        exit = true;
+        
+        System.out.println("Restarting TCP Socket for new connections");
+        
+        try{
+            clientConnectionSocket.close();
+        }catch(Exception e){
+            //e.printStackTrace();
+        }
+        
+        try{
+            ssock.close();
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        
+        
+        
+        Thread.currentThread().interrupt();
     }
 }

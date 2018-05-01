@@ -286,7 +286,7 @@ public class DatabaseManager {
         long fileSize = results.getLong("FILESIZE");
         String host = results.getString("HOSTNAME");
         String IP = results.getString("IP");
-        System.out.println(path + "\t\t" + fileSize + " bytes\t\t" + host + "\t\t" + IP);
+        System.out.println( fileSize + " bytes\t\t" + host + "\t\t" + IP + "\t\t" + path);
         FileData file = new FileData(path, fileSize, IP, 55555); //TODO hardcoded port
         files.add(file);
       }
@@ -315,7 +315,7 @@ public class DatabaseManager {
   
   public static void printCurrentDBState(){
     System.out.println("\n\nDATABASE STATE:");    
-    System.out.println("FILEPATH \t\t FILE SIZE \t\t FILE's HOST \t\t HOST'S IP");
+    System.out.println("FILE SIZE \t\t  FILE's HOST \t\t HOST'S IP \t\t FILE PATH");
     queryFiles("");
     System.out.println("\n\n");
   }
