@@ -82,53 +82,6 @@ public abstract class Host{
     return str.replaceAll("%20"," ");
   }
   
-  /* MESSAGING SENDING AND RECEIVING FUNCTIONALITY */
-  
-    public synchronized String performMessage(byte[] data, String[] headerData, 
-            InetAddress targetIPAddr, int targetPort, DatagramSocket socket){
-      //Message data
-      ByteArrayInputStream byteStream = new ByteArrayInputStream(data); //Stream of full-message payload 
-
-      //Packet specific data
-      boolean SEQ = false; //SEQ flag of message, start with SEQ = 0
-      String constantHeaders = createHeaders(headerData); //Create app-header data
-      DatagramPacket currentPacket = null;                //Current packet being sent
-      int packetNum = 0;  //Current packet number being sent
-      
-      //Manage RDT
-      ACKTimer timer = new ACKTimer(socket);
-      
-      while(byteStream.available()>0){ //While data still needs to be sent..
-        //Create packet of next data
-        currentPacket = createPacket(byteStream, constantHeaders, SEQ,
-                targetIPAddr, targetPort); //Create packet with rdt app-headers and headers specific to required format
-        if(currentPacket == null){ return null; } //If no packet created, packet size is an issue. Don't send null packet.
-
-        //Print packet data
-        byte[] packetData = currentPacket.getData();
-        System.out.println(
-                "\n\n| - - - - START PACKET (" + packetNum++ + ") - - - - - - - - |\n"
-                + new String(packetData) 
-                + "|- - - - END PACKET (total length: " + packetData.length + ") - - - - -| \n");
-
-        //Send packet
-        rdt_send(socket, currentPacket, SEQ, timer);
-        SEQ = !SEQ;
-        try{ //Give time so that everything doesn't happen too quickly
-          Thread.sleep(1200);
-        }catch(Exception e){
-          System.out.println("Unable to have thread wait");
-          e.printStackTrace();
-        }
-      }
-      System.out.println("Full message sent!");
-      System.out.println("Waiting for server response..");
-      return getResponse(); //Get response from destination machine after server processes
-  }
-  
-  //Creates application headers specific to the class sending the packets
-  abstract public String createHeaders(String[] params);
-  
   //Creates packets
   protected DatagramPacket createPacket(ByteArrayInputStream byteStream, 
           String appHeaders, boolean SEQ, InetAddress targetIPAddr,
@@ -167,40 +120,6 @@ public abstract class Host{
       String secondRow = "" + (SEQ?1:0) + " " + (EOM?1:0) + CRLF;
       byte[] packetData = (appHeaders + secondRow + new String(appDataBuffer) + CRLF).getBytes();
       return new DatagramPacket(packetData, packetData.length, targetIPAddr, targetPort);
-  }
-  
-  private void rdt_send(DatagramSocket socket, DatagramPacket packet, 
-          boolean SEQ, ACKTimer timer){
-      long startTime, endTime;
-      //Send
-      try{
-        socket.send(packet);
-      }catch(Exception e){
-        System.out.println("Could not send packet");
-        e.printStackTrace();
-        return;
-      }
-      
-      //Wait for correct ACK
-      byte[] ACKdata = { (byte)(SEQ?0:1) }; //Where ACK data will be placed, intialize to incorrect ACK value (which would be the value not equal to SEQ since we need ACK corresponding to sent packet)
-      DatagramPacket ack = new DatagramPacket(ACKdata, 1); //ACK packet
-      timer.setPacketToResend(packet);
-      startTime = System.currentTimeMillis();
-      timer.start(); //Start timer
-      try{
-          while(ACKdata[0] != (SEQ?1:0)){ //While incorrect ACK data, wait for correct ACK (this prevents delayed ACKS from affecting system)
-            socket.receive(ack); //Constantly receive acks until we get the correct one
-            System.out.println("Got ACK:");
-            System.out.println("\tACK Data Expected:" + (SEQ?1:0) + "\tAck Data Got " + ACKdata[0]);
-          }
-          System.out.println("Correct ACK received, continue sending data.\n");
-      }catch(Exception e){
-        System.out.println("Could not receive ACK for server");
-        e.printStackTrace();
-      }
-      endTime = System.currentTimeMillis();
-      timer.stop(); //End timer after correct ACK
-      timer.updateInterval((int)(endTime-startTime));
   }
   
   //Get response from destination, and make sure response is received reliably (i.e. send ACKs)

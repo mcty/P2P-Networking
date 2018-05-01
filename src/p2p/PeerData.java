@@ -76,7 +76,7 @@ public class PeerData {
     public void finishRequest(){
         currentRequest="";
         expectedSEQ = 0;
-        
+        packetCount = 0;
     }
     
     public String getRequest(){

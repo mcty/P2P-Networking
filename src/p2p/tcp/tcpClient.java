@@ -32,13 +32,12 @@ public class tcpClient extends Thread{
 		try{
 		//Initialize Handshake socket
         System.out.println("Trying to Connect to socket...");
-		Socket socket = new Socket(serverIP, 50007);
+		Socket socket = new Socket(serverIP, 5009);
         //byte[] contents = new byte[10000];
 		
 		//Send request
 		DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
 		BufferedReader inFromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		String filePort = "50011";
 		outToServer.writeBytes(fname + "\n");
 		outToServer.writeBytes(serverPort + "\n");
 		
@@ -77,9 +76,11 @@ public class tcpClient extends Thread{
 				int bytesRead = 0; 
         
 				while((bytesRead=is.read(contents))!=-1)
-					bos.write(contents, 0, bytesRead); 
-        
+					bos.write(contents, 0, bytesRead);
+                                
+                                
 				bos.flush(); 
+                                fos.close();
 				ssocket.close(); 
         
 				System.out.println("File saved successfully!");

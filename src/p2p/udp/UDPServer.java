@@ -12,7 +12,13 @@ import p2p.db.DatabaseManager;
 
 /**
  * The server of the application. Will be expecting packets sent from peers.
- *
+ *  //Sets the server up to listen to all incoming requests
+    //Upon packet being received, it checks if that user has previously sent a message or not
+    //If they haven't, it adds a new connection to the hashmap, connecting the user's ip and hostname 
+    //to it's other data, including the current request (this PeerData contains the request as
+    //it's being recreated, which is necessary since packets can only contain MSS bytes of payload)
+    //If they have already sent data, it adds the new data from the packet to the incomplete message.
+    //If the full message is complete, it processes this complete message on a new thread.
  * @authors: Tyler & Austin
  */
 public class UDPServer extends Host {
@@ -27,17 +33,10 @@ public class UDPServer extends Host {
         DatabaseManager.initialize(); //Initialize database
     }
 
-    //Runs the server
-    //Sets the server up to listen to all incoming requests
-    //Upon packet being received, it checks if that user has previously sent a message or not
-    //If they haven't, it adds a new connection to the hashmap, connecting the user's ip and hostname 
-    //to it's other data, including the current request (this PeerData contains the request as
-    //it's being recreated, which is necessary since packets can only contain MSS bytes of payload)
-    //If they have already sent data, it adds the new data from the packet to the incomplete message.
-    //If the full message is complete, it processes this complete message on a new thread.
+    //Runs the server - allows it to listen forever
     public void run() {
-
-        try { //Create Socket
+        //Create Socket
+        try { 
             receivingSocket = new DatagramSocket(listeningPort);
             System.out.println("Host is listening for UDP data on port "
                     + listeningPort + " with IP address " + getIPAddress());
@@ -48,13 +47,14 @@ public class UDPServer extends Host {
             System.exit(10);
         }
 
-        while (true) { //Get packets forever
-            //Wait for request
+        //Get packets forever
+        while (true) { 
+            
+            //Wait for and receive any packets from clients
             System.out.println("Waiting for data...");
             byte[] buf = new byte[MSS];
-
-            //Receive request
             DatagramPacket packet = new DatagramPacket(buf, MSS);
+            
             try {
                 receivingSocket.receive(packet);
             } catch (Exception e) {
@@ -66,9 +66,8 @@ public class UDPServer extends Host {
             byte[] packetData = Arrays.copyOf(packet.getData(), packet.getLength());
             System.out.println("TTS: Socket info: " + packet.getSocketAddress() + "");
 
-            //Handle packet in new thread
-            new PacketHandler().setPacket(packet)
-                    .start();
+            //Handle packet in new PacketHandler thread
+            new PacketHandler(packet).start();
         }
     }
 
@@ -85,7 +84,7 @@ public class UDPServer extends Host {
     }
 
     //Create headers for messages sent from server (used in host's method)
-    @Override
+    //Follows format: 'statusCode statusPhrase<CRLF>'
     public String createHeaders(String[] params) {
         if (params == null) {
             return null;
@@ -98,100 +97,80 @@ public class UDPServer extends Host {
         return headerData;
     }
 
-    //Send message to 
-    /*private void performMessage(byte[] data, String[] headerData, String IP,
-            int port, DatagramSocket socket) {
-        try {
-            performMessage(data, headerData, InetAddress.getByName(IP), port,
-                    socket);
-        } catch (Exception e) {
-            System.out.println("Unable to send response to peer");
-            e.printStackTrace();
-        }
-    }*/
-
+    //Class that handles each packet and all of the UDP connections with clients
+    //Is used to allow server to be multithreaded
     private class PacketHandler extends Thread {
+        private final DatagramPacket packet;   //Packet associated with thread
+        private volatile PeerData peer = null; //The peer that sent this packet. Includes their info and components related to them
 
-        private DatagramPacket packet = null;
-        private volatile PeerData peer = null;
-        private String messageType = null;
-        //private String[] payloadParts = null;
-
-        public PacketHandler setPacket(DatagramPacket packet) {
+        public PacketHandler(DatagramPacket packet){
             this.packet = packet;
-            return this;
         }
-
+        
+        //Given a packet, the PacketHandler first breaks it down, while also considering the client's previous packets
         @Override
         public void run() {
+            //If no packet, do nothing
             if (packet == null) {
-                return; //If no packet, do nothing
+                return; 
             }
-            //Get peer data from packet (via payload or packet itself)
+            
+            //Get peer data from packet via payload
             byte[] payload = Arrays.copyOf(packet.getData(), packet.getLength()); //Payload as byte array
-            String payloadStr = new String(payload);
-            //Scanner payloadScan = new Scanner(payloadStr);
-
-            String[] payloadParts = payloadStr.split(" |" + CRLF);
+            String payloadStr = new String(payload);    //Payload as string
+            String[] payloadParts = payloadStr.split(" |" + CRLF);  //Payload broken into array
 
             //Print
-            //for(String part: payloadParts) System.out.println(part);
+            for(String part: payloadParts) System.out.println(part);
+            
             //Peer data (guaranteed by format)
-            messageType = payloadParts[0];//payloadScan.next();//= payloadParts[0];
+            String messageType = payloadParts[0];//payloadScan.next();//= payloadParts[0];
             String peerName = payloadParts[1];//payloadScan.next();//payloadParts[1];
             String peerIP = payloadParts[2];//payloadScan.next();//payloadParts[2];
             int peerPort = packet.getPort();
 
-            //Print
-            System.out.println(messageType);
-            System.out.println(peerName);
-            System.out.println(peerIP);
-            System.out.println(peerPort);
-
-            //Get peer
-            String peerKey = peerIP + peerName + peerPort;
+            //Get PeerData corresponding to this info
+            String peerKey = peerIP + peerName + peerPort; //Hashmap key
             peer = currentConnections.get(peerKey);
             if (peer == null) { //If peer doesn't exist yet, add them
-                peer = new PeerData(peerIP, peerName, peerPort); //Create new PeerData object, will hold the request
-                currentConnections.put(peerKey, peer);   //Add to map
+                peer = new PeerData(peerIP, peerName, peerPort); //Create new PeerData object, which will hold the growing request
+                currentConnections.put(peerKey, peer);          //Add to map
                 DatabaseManager.addPeer(peerName, peerIP);      //Update database with new peer
             }
-
-            if (messageType.equals("ACK")) {
+            
+            //Decide what to do depending on type of packet
+            if (messageType.equals("ACK")) { //If packet is ACK for previous server message...
                 //Process ACK
-                int ACK = Integer.parseInt(payloadParts[3]);
+                int ACK = Integer.parseInt(payloadParts[3]);    
                 System.out.println("Got ACK " + ACK + " from peer " + peerName + " at " + peerIP);
                 peer.setCurrentACKValue(ACK);
                 peer.print();
-                //End of thread for ACK
                 
             } else {
-                //Process other type of message
+                //Process other type of message (inform, query or exit)
                 payloadParts = payloadStr.split(" |" + CRLF, 6);
-                int SEQ = Integer.parseInt(payloadParts[3]);//payloadScan.nextInt();
-                int EOM = Integer.parseInt(payloadParts[4]);//payloadScan.nextInt();
-                //payloadScan.useDelimiter("*");
+                int SEQ = Integer.parseInt(payloadParts[3]);
+                int EOM = Integer.parseInt(payloadParts[4]);
                 String userData = payloadParts[5];
                 userData = userData.substring(0, userData.length() - 2);
-                //TODO verfiy correct
 
                 //Print
                 System.out.println(SEQ);
                 System.out.println(EOM);
                 System.out.println(userData);
-
-                //Print packet
-                printPacketReceived(peer.getPacketCount() + 1, SEQ, EOM, peer.getIP(), packet.getLength());
+                printPacketReceived(peer.getPacketCount(), SEQ, EOM, peer.getIP(), packet.getLength());
 
                 //SEQ and EOM
                 if (SEQ == peer.getExpectedSEQ()) { //If SEQ is correct..
                     peer.updateExpectedSEQ();    //Progress SEQ
-                    peer.addToRequest(userData); //Add data to request
-                    sendACK(receivingSocket, SEQ, peer.getIP(), peer.getPort());
+                    peer.addToRequest(userData); //Add data to currently incomplete request
+                    sendACK(receivingSocket, SEQ, peer.getIP(), peer.getPort()); //ACK packet
+                    
                     //If message complete, process full message
                     if (EOM == 1) {
+                        System.out.println("Processing '" + messageType + "' request:");
                         System.out.println(peer.getRequest()); //TODO REMOVE
-                        processMessage(peer.getRequest());
+                        processMessage(messageType, peer.getRequest());
                         peer.finishRequest();
                     }
                 } else {
@@ -199,8 +178,16 @@ public class UDPServer extends Host {
                 }
             }
         }
-
-        private void processMessage(String message) {
+        
+        //Given a full client request and its type, process it appropriately
+        private void processMessage(String messageType, String message) {
+            try{
+                Thread.sleep(4000);
+            }catch(Exception e){
+                e.printStackTrace();
+                System.out.println("Could not make thread wait");
+            }
+            
             //Depending on message method, do certain code
             switch (messageType) {
                 case "inform":
@@ -213,6 +200,7 @@ public class UDPServer extends Host {
                     processExit(message);
                     break;
                 default:
+                    sendError("Incorrect method type: " + messageType);
                 //Error, unsupported message type
             }
 
@@ -220,6 +208,12 @@ public class UDPServer extends Host {
             DatabaseManager.printCurrentDBState();
         }
 
+       private void sendError(String message){
+           sendMessage(message.getBytes(),
+                   new String[]{"400", "ERROR"}, peer.getIP(), peer.getPort(),
+                   receivingSocket);
+       }
+        
         //Submit selected files to server db
         private void processInformAndUpdate(String message) {
             String currentFileName;
@@ -242,13 +236,10 @@ public class UDPServer extends Host {
                         + "', File size: '" + currentFileSize + " bytes'}, associated with host "
                         + peer.getHostname() + " at IP address " + peer.getIP());
                 DatabaseManager.addFile(currentFileName, currentFileSize, peer.getHostname(), peer.getIP());
-
-                //Remove old files no longer shared??
-                //TODO
             }
 
             //Send response to sender TODO error?
-            performMessage("Entries have been added".getBytes(),
+            sendMessage("Entries have been added".getBytes(),
                     new String[]{"200", "OK"}, peer.getIP(), peer.getPort(), receivingSocket);
         }
 
@@ -280,7 +271,7 @@ public class UDPServer extends Host {
             }
 
             //Send response specifying results of query to sender
-            performMessage(resultText.getBytes(),
+            sendMessage(resultText.getBytes(),
                     new String[]{"200", "OK"}, peer.getIP(), peer.getPort(), receivingSocket);
         }
 
@@ -295,53 +286,21 @@ public class UDPServer extends Host {
             currentConnections.remove(key, peer);
             
             //Send response to sender
-            performMessage("Entries removed".getBytes(),
+            sendMessage("Entries removed".getBytes(),
                     new String[]{"200", "OK"}, peer.getIP(), peer.getPort(), receivingSocket);
         }
 
-        private void performMessage(byte[] data, String[] headerData, String IP,
-            int port, DatagramSocket socket) {
-        try {
-            sendMessage(data, headerData, InetAddress.getByName(IP), port,
-                    socket);
-        } catch (Exception e) {
-            System.out.println("Unable to send response to peer");
-            e.printStackTrace();
-        }
-    }
-        //Send ACK
-        public void sendACK(DatagramSocket socket, int SEQ, String SenderIP, int SenderPort) {
-            byte[] packetData = {(byte) SEQ};
-            try {
-                DatagramPacket packet = new DatagramPacket(packetData, packetData.length, InetAddress.getByName(SenderIP), SenderPort);
-                socket.send(packet);
-            } catch (Exception e) {
-                System.out.println("Could not send ACK from server to " + SenderIP);
-                e.printStackTrace();
-                close();
-                System.exit(12);
-            }
-            System.out.println("ACK Sent: " + SEQ);
-        }
-
-        // Prints packet data
-        public void printDataReceived(int SEQ, int EOM, String SenderIP, String message) {
-            System.out.println("|---*Received data packet info*---|");
-            System.out.println("SEQ:" + SEQ);
-            System.out.println("EOM:" + EOM);
-            System.out.println("SenderIP:" + SenderIP);
-            System.out.println("message:" + message + "\n");
-        }
-
-        //Packet Recieved Print Statement
-        public void printPacketReceived(int pnum, int SEQ, int EOM, String SenderIP, int length) {
-            System.out.println("|----Packet " + pnum + " recieved----|");
-            System.out.println("Recieved: " + SenderIP + "\nSEQ: " + SEQ + "\tEOM: " + EOM);
-            System.out.println("|----Packet Length: " + length + " ----|\n");
-        }
-
         public void sendMessage(byte[] data, String[] headerData,
-                InetAddress targetIPAddr, int targetPort, DatagramSocket socket) {
+                String targetIPAddr, int targetPort, DatagramSocket socket) {
+            
+            InetAddress IP = null;
+            try{
+                IP = InetAddress.getByName(targetIPAddr);
+            }catch(Exception e){
+                System.out.println("Could not get IP address from string");
+                e.printStackTrace();
+            }
+            
             //Message data
             ByteArrayInputStream byteStream = new ByteArrayInputStream(data); //Stream of full-message payload 
 
@@ -362,7 +321,7 @@ public class UDPServer extends Host {
             while (byteStream.available() > 0) {
                 //Create packet of next data
                 currentPacket = createPacket(byteStream, constantHeaders, SEQ,
-                        targetIPAddr, targetPort); //Create packet with rdt app-headers and headers specific to required format
+                        IP, targetPort); //Create packet with rdt app-headers and headers specific to required format
                 if (currentPacket == null) {
                     return; //If no packet created, packet size is an issue. Don't send null packet.
                 }
@@ -417,63 +376,40 @@ public class UDPServer extends Host {
             timer.updateInterval((int) (endTime - startTime));
         }
         
+        //Send ACK
+        public void sendACK(DatagramSocket socket, int SEQ, String SenderIP, int SenderPort) {
+            byte[] packetData = {(byte) SEQ};
+            try {
+                Thread.sleep(4000);
+                DatagramPacket packet = new DatagramPacket(packetData, packetData.length, InetAddress.getByName(SenderIP), SenderPort);
+                socket.send(packet);
+            } catch (Exception e) {
+                System.out.println("Could not send ACK from server to " + SenderIP);
+                e.printStackTrace();
+                close();
+                System.exit(12);
+            }
+            System.out.println("ACK Sent: " + SEQ);
+        }
+
+        // Prints packet data
+        public void printDataReceived(int SEQ, int EOM, String SenderIP, String message) {
+            System.out.println("|---*Received data packet info*---|");
+            System.out.println("SEQ:" + SEQ);
+            System.out.println("EOM:" + EOM);
+            System.out.println("SenderIP:" + SenderIP);
+            System.out.println("message:" + message + "\n");
+        }
+
+        //Packet Recieved Print Statement
+        public void printPacketReceived(int pnum, int SEQ, int EOM, String SenderIP, int length) {
+            System.out.println("|----Packet " + pnum + " recieved----|");
+            System.out.println("Recieved: " + SenderIP + "\nSEQ: " + SEQ + "\tEOM: " + EOM);
+            System.out.println("|----Packet Length: " + length + " ----|\n");
+        }
+        
         private String getKey(PeerData peer){
             return peer.getIP() + peer.getHostname() + peer.getPort();
         }
     }
 }
-
-
-/*
-        try {
-                
-                //Breakdown request using the designed format
-                String rph = new String(packetData);	//Save the string from packet.
-                String[] arr = rph.split(" |\r\n", 6);
-
-                //Variables saved from packetData
-                String message_Type = arr[0];
-                String Sender = arr[1];
-                String SenderIP = arr[2];
-                int SEQ = Integer.parseInt(arr[3]);
-                int EOM = Integer.parseInt(arr[4]);
-                String userData = arr[5];
-                userData = userData.substring(0, userData.length() - 2);
-
-                //Check if this peer has been connected to the server already
-                String key = Sender + SenderIP;                         //Key to peer data
-                PeerData currentPeerData = currentConnections.get(key); //Peer data
-                if (currentPeerData == null) { //If peer data doesn't already exist, meaning this is a new connection, add the data to the map
-                    currentPeerData = new PeerData(SenderIP, Sender, packet.getPort()); //Create new PeerData object, will hold the request
-                    currentConnections.put(key, currentPeerData);   //Add to map
-                    DatabaseManager.addPeer(Sender, SenderIP);      //Update database with new peer
-                }
-                
-                //Is packet correct?
-                if (SEQ != SEQ_previous) { //If correct SEQ, add packet data to full message, send ACK
-                    PacketNum = PacketNum + 1;
-                    currentPeerData.addToRequest(userData); //Add data to full peer request
-                    printPacketReceived(PacketNum, SEQ, EOM, SenderIP, packet.getLength());
-                    if (EOM == 1) { //If End of message, process message on new thread
-                        String fullRequest = currentPeerData.getRequest();
-                        printDataReceived(SEQ, EOM, SenderIP, fullRequest);
-                        sendACK(receivingSocket, SEQ, packet.getAddress(), packet.getPort());
-                        processMessage(message_Type, currentPeerData);
-                        PacketNum = 0;
-                        SEQ_previous = 1;
-                        //currentPeerData.finishRequest();
-                    } else {
-                        SEQ_previous = SEQ;
-                        sendACK(receivingSocket, SEQ, packet.getAddress(), packet.getPort());
-                    }
-
-                } else {
-                    sendACK(receivingSocket, SEQ_previous, packet.getAddress(), packet.getPort());
-                }
-            }
-        } catch (Exception e) {
-            stopListening();
-            e.printStackTrace();
-        }
-    }
- */
