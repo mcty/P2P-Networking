@@ -101,6 +101,7 @@ public class Main {
         
         if(data.equals("exit")){
           //exit code here...
+          sender.stopSender();
           break; //Get out of while
         }
         else{

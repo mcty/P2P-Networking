@@ -113,7 +113,7 @@ public class UDPServer extends Host {
     private class PacketHandler extends Thread {
 
         private DatagramPacket packet = null;
-        private PeerData peer = null;
+        private volatile PeerData peer = null;
         private String messageType = null;
         //private String[] payloadParts = null;
 
@@ -285,11 +285,15 @@ public class UDPServer extends Host {
         }
 
         private void processExit(String message) {
-            //Complete exit request by removing entries from db
-            System.out.println("Removing file records for peer " + hostname + " with "
+            //Remove peer from DB
+            System.out.println("Removing file records for peer " + peer.getHostname() + " with "
                     + "IP address " + peer.getIP());
-            DatabaseManager.removePeer(hostname, peer.getIP());
-
+            DatabaseManager.removePeer(peer.getHostname(), peer.getIP());
+            
+            //Remove peer from current connections
+            String key = getKey(peer);
+            currentConnections.remove(key, peer);
+            
             //Send response to sender
             performMessage("Entries removed".getBytes(),
                     new String[]{"200", "OK"}, peer.getIP(), peer.getPort(), receivingSocket);
@@ -402,8 +406,8 @@ public class UDPServer extends Host {
             
             //Wait for ACK
             System.out.println("Expecting ACK " + (SEQ? 1:0) + " from peer " + peer.getHostname() + " at " + peer.getIP() + "...");
-            while(peer.getCurrentACKValue()!= (SEQ? 1:0)); //peer.print();
-            System.out.println("Peer " + peer.getHostname() + "at" + peer.getIP() + "sent ACK.");
+            while(peer.getCurrentACKValue()!= (SEQ? 1:0)) ;//System.out.print(""); //peer.print();
+            System.out.println("Peer " + peer.getHostname() + " at " + peer.getIP() + " sent ACK.");
             System.out.println("\tACK Data Expected:" + (SEQ? 1:0) + "\tAck Data Got " + peer.getCurrentACKValue());
             System.out.println("Correct ACK received, server will continue sending data.\n");
            
@@ -411,6 +415,10 @@ public class UDPServer extends Host {
             endTime = System.currentTimeMillis();
             timer.stop(); //End timer after correct ACK
             timer.updateInterval((int) (endTime - startTime));
+        }
+        
+        private String getKey(PeerData peer){
+            return peer.getIP() + peer.getHostname() + peer.getPort();
         }
     }
 }

@@ -65,7 +65,8 @@ public class UDPSender extends Host {
         for (int currentFile = 0; currentFile < fileNames.size(); currentFile++) {
             payload += "Filename: " + encodeString(fileNames.get(currentFile)) + " " + fileSizes.get(currentFile) + CRLF;
         }
-
+        if(payload.length() == 0) payload = "\n"; //Allows for empty 'inform and updates' to remove files
+        
         //sendData(payload.getBytes(), "inform"); //Send
         return performMessage(payload.getBytes(), new String[]{"inform"});
     }
@@ -74,7 +75,6 @@ public class UDPSender extends Host {
     public String sendQuery(String query) throws SocketException,
             IOException, InterruptedException {
         String payload = "";
-        String CRLF = "\r\n";
 
         //Create payload
         //Follows the format: "Search-term: query<CR><LF>". Currently, only supports one term
